@@ -1,0 +1,16 @@
+{
+  "group_name": "Jorion Ajo",
+  "currency": "NGN",
+  "plan": {
+    "name": "Jorion Monthly Ajo",
+    "monthly_amount": 20000,
+    "paystack_payment_link": "https://paystack.com/pay/your-plan-link"
+  },
+  "monthly_due_day": 28,
+  "reminder_days_before": [5, 2],
+  "timezone": "Africa/Lagos",
+  "join_keyword": "JOIN",
+  "balance_keyword": "BALANCE",
+  "send_email_receipt": true,
+  "admin_name": "Secretary"
+}

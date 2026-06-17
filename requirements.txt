@@ -1,0 +1,12 @@
+# Ajo / Contribution Tracker — Python dependencies
+# Python 3.11+ required.
+
+Flask>=3.0,<4.0
+gspread>=6.0,<7.0
+google-auth>=2.28,<3.0
+twilio>=9.0,<10.0
+requests>=2.31,<3.0
+python-dotenv>=1.0,<2.0
+
+# Timezone data — ensures Africa/Lagos resolves via zoneinfo on all platforms.
+tzdata>=2024.1

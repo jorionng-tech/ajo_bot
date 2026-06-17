@@ -1,0 +1,32 @@
+# =====================================================================
+# SECRETS — never commit these. credentials.json and .env contain
+# private keys / tokens. Treat both like passwords.
+# =====================================================================
+.env
+.env.*
+!.env.example
+credentials.json
+*.credentials.json
+service_account*.json
+
+# Logs
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
