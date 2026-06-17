@@ -200,8 +200,10 @@ def _balance_reply(phone: str) -> str:
                 f"Text {config.JOIN_KEYWORD} to become a member.")
 
     name = str(member.get("Name", "")).strip() or "there"
+    sheet_phone = member.get("Phone", phone)
+    
     contribs = [
-        c for c in sheets.get_contributions_by_phone(phone)
+        c for c in sheets.get_contributions_by_phone(sheet_phone)
         if str(c.get("Status", "")).strip().lower() == sheets.CONTRIB_CONFIRMED.lower()
     ]
 

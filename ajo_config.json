@@ -6,6 +6,7 @@
     "monthly_amount": 50000,
     "paystack_payment_link": "https://paystack.com/pay/your-plan-link"
   },
+  "_comment_monthly_due_day": "Must be between 8 and 28 so reminders always fall within the same calendar month and avoid February issues",
   "monthly_due_day": 25,
   "reminder_days_before": [5, 2],
   "timezone": "Africa/Lagos",

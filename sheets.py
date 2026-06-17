@@ -161,9 +161,11 @@ def find_member_by_phone(phone: str) -> Optional[dict]:
     """Return the member record matching this phone exactly, or None."""
     if not phone:
         return None
-    target = _clean(phone)
+    target = _clean(phone).lstrip('+')
     for rec in _records(config.MEMBERS_SHEET):
-        if _clean(rec.get("Phone", "")) == target:
+        cleaned_sheet = _clean(rec.get("Phone", "")).lstrip('+')
+        
+        if cleaned_sheet == target:
             return _clean_record(rec)
     return None
 
