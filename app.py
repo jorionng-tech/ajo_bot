@@ -20,6 +20,7 @@ import re
 import threading
 import time
 from collections import deque
+from contextlib import contextmanager
 from datetime import datetime
 
 from flask import Flask, request
@@ -113,11 +114,52 @@ _rate = _RateLimiter()
 
 
 # ---------------------------------------------------------------------------
+# Per-reference processing lock (Section 9.3, H-5)
+# ---------------------------------------------------------------------------
+class _ReferenceLocks:
+    """Hand out one lock per payment reference so the idempotency check and the
+    contribution write are serialized for the SAME reference. Two simultaneous
+    duplicate webhooks for one reference cannot both pass reference_exists()
+    before either writes.
+
+    Bounded: locks are reference-counted and dropped once no caller holds them,
+    so the map only ever holds entries for references being processed right now.
+    """
+
+    def __init__(self):
+        self._guard = threading.Lock()
+        self._locks: dict[str, list] = {}  # reference -> [lock, waiter_count]
+
+    @contextmanager
+    def hold(self, reference: str):
+        with self._guard:
+            entry = self._locks.get(reference)
+            if entry is None:
+                entry = self._locks[reference] = [threading.Lock(), 0]
+            entry[1] += 1
+            lock = entry[0]
+        lock.acquire()
+        try:
+            yield
+        finally:
+            lock.release()
+            with self._guard:
+                entry = self._locks.get(reference)
+                if entry is not None:
+                    entry[1] -= 1
+                    if entry[1] <= 0:
+                        self._locks.pop(reference, None)
+
+
+_reference_locks = _ReferenceLocks()
+
+
+# ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
 @app.get("/health")
 def health():
-    return {"status": "ok", "group": config.GROUP_NAME}, 200
+    return {"status": "ok"}, 200
 
 
 # ---------------------------------------------------------------------------
@@ -154,7 +196,8 @@ def whatsapp_webhook():
         reply = _route_whatsapp(phone, body)
     except Exception as exc:  # noqa: BLE001 - never 500 to Twilio
         log.error("Error handling WhatsApp from %s: %s", redact_phone(phone), exc)
-        notifier.notify_error("WhatsApp handler error", str(exc))
+        # M-5: send a generic alert to Telegram; full detail stays in the logs.
+        notifier.notify_error("WhatsApp handler error — see logs.")
         return ("", 200)
 
     if reply:
@@ -257,10 +300,14 @@ def paystack_webhook():
         return ("", 200)
 
     try:
-        _process_charge(charge)
+        # H-5: serialize the check-then-write for this reference so duplicate
+        # webhooks can't both pass the idempotency check before either writes.
+        with _reference_locks.hold(reference):
+            _process_charge(charge)
     except Exception as exc:  # noqa: BLE001 - never 500 to Paystack
         log.error("Error processing charge ref=%s: %s", reference, exc)
-        notifier.notify_error(f"Paystack processing error (ref {reference})", str(exc))
+        # M-5: generic alert to Telegram; the exception detail stays in the logs.
+        notifier.notify_error(f"Payment handler error — see logs, ref: {reference}")
 
     # 10. Always 200 once signature is valid (providers retry on non-200).
     return ("", 200)
@@ -299,6 +346,24 @@ def _process_charge(charge: dict) -> None:
         notifier.notify_error(
             f"Payment with invalid amount (ref {reference})",
             f"amount={amount}, email={email}",
+        )
+        return
+
+    # C-2: Verify the paid amount covers the expected plan amount BEFORE
+    # activating or logging. paystack.extract_charge already converts the
+    # Paystack kobo amount to naira, so convert both sides back to integer kobo
+    # for an exact comparison (no float tolerance needed).
+    expected_kobo = int(round(config.PLAN_AMOUNT * 100))
+    paid_kobo = int(round(amount * 100))
+    if paid_kobo < expected_kobo:
+        log.warning(
+            "Underpayment on ref=%s: paid=%s expected=%s — not activating.",
+            reference, amount, config.PLAN_AMOUNT,
+        )
+        notifier.send_admin(
+            f"⚠️ Underpayment detected (ref {reference}).\n"
+            f"Expected: {config.format_money(config.PLAN_AMOUNT)}\n"
+            f"Paid: {config.format_money(amount)}"
         )
         return
 

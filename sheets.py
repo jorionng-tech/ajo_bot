@@ -30,10 +30,11 @@ from logger import get_logger, redact_phone
 
 log = get_logger("sheets")
 
-# Scopes required for gspread to read/write the sheet.
+# Scopes required for gspread to read/write the sheet. Sheets-only by design
+# (H-3): the bot only touches its own spreadsheet (opened by key, shared with
+# the service account), so the broad Drive scope is not needed.
 _SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
 ]
 
 # ---------------------------------------------------------------------------

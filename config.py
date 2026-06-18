@@ -223,6 +223,15 @@ def validate(strict: bool = True) -> list[str]:
     start half-configured (fail loud, Section 0.6). Returns the list of missing
     items either way.
     """
+    # C-3: A Paystack TEST key (sk_test_) accepts test cards, so running one in
+    # production would let fake payments activate memberships. Fail hard.
+    if IS_PRODUCTION and (PAYSTACK_SECRET_KEY or "").startswith("sk_test_"):
+        log.critical(
+            "FATAL: PAYSTACK_SECRET_KEY is a TEST key (sk_test_) while "
+            "FLASK_ENV=production. Refusing to start — use a live key."
+        )
+        raise SystemExit(1)
+
     missing = missing_required()
     if missing:
         for item in missing:

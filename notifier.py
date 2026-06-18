@@ -40,8 +40,8 @@ def send_admin(text: str) -> bool:
             timeout=10,
         )
         if resp.status_code != 200:
-            log.error("Telegram sendMessage failed: %s %s",
-                      resp.status_code, resp.text[:200])
+            # M-7: log the status code only — never the response body.
+            log.error("Telegram sendMessage failed: HTTP %s", resp.status_code)
             return False
         log.info("Sent admin notification (%d chars).", len(text))
         return True
